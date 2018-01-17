@@ -5,24 +5,19 @@
  */
 package comparisonofexcelsheets;
 
-import java.io.File;
-import java.io.FileInputStream;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.xssf.streaming.SXSSFSheet;
-import org.apache.poi.xssf.streaming.SXSSFWorkbook;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -48,94 +43,38 @@ public class ComparisonOfExcelSheets {
         String excel2 = sc.next();
         System.out.print("Enter column name: ");
         String colName = sc.next().toLowerCase();
-        System.out.println(c.excelToJsonForSheet1(excel1, colName));
-        System.out.println(c.excelToJsonForSheet2(excel2, colName));
-        System.out.println(c.comparingTwoSheets(c.excelToJsonForSheet1(excel1, colName), c.excelToJsonForSheet2(excel2, colName)));
+        JSONArray file1 = c.excelToJsonForSheet(excel1, colName);
+        JSONArray file2 = c.excelToJsonForSheet(excel2, colName);
+        System.out.println(c.comparingTwoSheets(file1, file2, colName));
 
     }
 
-    public JSONArray excelToJsonForSheet1(String excelSheet, String colName) throws FileNotFoundException, IOException, InvalidFormatException, JSONException {
-        File file = new File(excelSheet);
-        FileInputStream inp = new FileInputStream(file);
-        XSSFWorkbook workbook = new XSSFWorkbook(inp);
-        XSSFSheet sheet = workbook.getSheetAt(0);
-        JSONObject json = new JSONObject();
+    public JSONArray excelToJsonForSheet(String excelSheet, String colName) throws FileNotFoundException, IOException, InvalidFormatException, JSONException {
+        CSVReader reader = new CSVReader(new FileReader(excelSheet));
+        List<String[]> records = reader.readAll();
         JSONArray rows = new JSONArray();
-
-        Boolean check = false;
-        int colNumber = 0;
-        for (int i = 0; i <= sheet.getLastRowNum(); i++) {
-            JSONObject jRow = new JSONObject();
-            JSONArray cells = new JSONArray();
-            String name = colName;
-            for (int j = 0; j < sheet.getRow(i).getLastCellNum(); j++) {
-                Cell cell = sheet.getRow(i).getCell(j);
-                if (i == 0 && cell.getStringCellValue().toLowerCase().equals(colName)) {
-                    check = true;
-                    colNumber = j;
-                }
-                if (check == true) {
-                    name = sheet.getRow(i).getCell(colNumber).getStringCellValue();
-                    switch (cell.getCellTypeEnum()) {
-                        case NUMERIC:
-                            cells.put(cell.getNumericCellValue());
-                            break;
-                        case STRING:
-                            cells.put(cell.getStringCellValue().toLowerCase());
-                            break;
-                        case BOOLEAN:
-                            cells.put(cell.getBooleanCellValue());
-                            break;
-                    }
-                }
+        JSONObject jRow = new JSONObject();
+        int columnNumber = 0;
+        String[] a = records.get(0);
+        for (int k = 0; k < a.length; k++) {
+            if (colName.equals(a[k])) {
+                columnNumber = k;
+                System.out.println("k: " + k);
             }
-            jRow.put(name, cells);
-            rows.put(jRow);
         }
+        String name = "";
+        for (int i = 0; i < records.size(); i++) {
+            String[] s = records.get(i);
+            JSONArray record = new JSONArray(s);
+            name = s[columnNumber];
+            jRow.put(name, record);
+        }
+        rows.put(jRow);
+        reader.close();
         return rows;
     }
 
-    public JSONArray excelToJsonForSheet2(String excelSheet, String colName) throws FileNotFoundException, IOException, InvalidFormatException, JSONException {
-        File file = new File(excelSheet);
-        FileInputStream inp = new FileInputStream(file);
-        XSSFWorkbook workbook = new XSSFWorkbook(inp);
-        XSSFSheet sheet = workbook.getSheetAt(0);
-        JSONArray rows = new JSONArray();
-
-        Boolean check = false;
-        int colNumber = 0;
-        for (int i = 0; i <= sheet.getLastRowNum(); i++) {
-            JSONObject jRow = new JSONObject();
-            JSONArray cells = new JSONArray();
-            String name = colName;
-            for (int j = 0; j < sheet.getRow(i).getLastCellNum(); j++) {
-                Cell cell = sheet.getRow(i).getCell(j);
-                if (i == 0 && cell.getStringCellValue().toLowerCase().equals(colName)) {
-                    check = true;
-                    colNumber = j;
-                }
-                if (check == true) {
-                    name = sheet.getRow(i).getCell(colNumber).getStringCellValue();
-                    switch (cell.getCellTypeEnum()) {
-                        case NUMERIC:
-                            cells.put(cell.getNumericCellValue());
-                            break;
-                        case STRING:
-                            cells.put(cell.getStringCellValue().toLowerCase());
-                            break;
-                        case BOOLEAN:
-                            cells.put(cell.getBooleanCellValue());
-                            break;
-                    }
-                }
-            }
-            jRow.put(name, cells);
-            rows.put(jRow);
-        }
-        return rows;
-    }
-
-    public JSONArray comparingTwoSheets(JSONArray sheet1data, JSONArray sheet2data) throws JSONException, FileNotFoundException {
+    public JSONArray comparingTwoSheets(JSONArray sheet1data, JSONArray sheet2data, String colName) throws JSONException, FileNotFoundException {
         JSONObject json = new JSONObject();
         ArrayList<String> keysForSheet1 = new ArrayList<>();
         ArrayList<String> keysForSheet2 = new ArrayList<>();
@@ -146,90 +85,88 @@ public class ComparisonOfExcelSheets {
             Iterator<String> keys = json.keys();
             while (keys.hasNext()) {
                 String key = (String) keys.next();
-                keysForSheet1.add(key);
+                keysForSheet1.add(key.trim().toLowerCase());
             }
         }
-//        System.out.println("Sheet1 size: " + keysForSheet1.size());
-//        for (String s1 : keysForSheet1) {
-//            System.out.println("sheet1: " + s1);
-//        }
+        System.out.println("Sheet1 size: " + keysForSheet1.size());
+        for (String s1 : keysForSheet1) {
+            System.out.println("sheet1: " + s1);
+        }
 
         for (int i = 0; i < sheet2data.length(); i++) {
             json = sheet2data.getJSONObject(i);
             Iterator<String> keys = json.keys();
             while (keys.hasNext()) {
                 String key = (String) keys.next();
-                keysForSheet2.add(key);
+                keysForSheet2.add(key.trim().toLowerCase());
             }
         }
-//        System.out.println("Sheet2 size: " + keysForSheet2.size());
-//        for (String s2 : keysForSheet2) {
-//            System.out.println("sheet1: " + s2);
-//        }
+        System.out.println("Sheet2 size: " + keysForSheet2.size());
+        for (String s2 : keysForSheet2) {
+            System.out.println("sheet2: " + s2);
+        }
 
         for (String keys : keysForSheet1) {
-            if (!keysForSheet2.contains(keys)) {
+            System.out.println("key check: " + keys);
+            if (keysForSheet2.contains(keys)) {
+                System.out.println("testing: " + keysForSheet2.contains(keys));
                 resultSetKeys.add(keys);
             }
         }
 
         for (String keys : keysForSheet2) {
-            if (!keysForSheet1.contains(keys)) {
+            System.out.println("key check2: " + keys);
+            if (keysForSheet1.contains(keys)) {
+                System.out.println("testing2: " + keysForSheet1.contains(keys));
                 resultSetKeys.add(keys);
             }
         }
 
+        for (int i = 0; i < keysForSheet2.size(); i++) {
+            String s = keysForSheet2.get(i);
+            System.out.println("me: " + s);
+            if ("name".equals(s)) {
+                System.out.println("hi i came........");
+            }
+        }
+
         System.out.println("Result set: " + resultSetKeys);
-        JSONObject item = new JSONObject();
         JSONArray rows = new JSONArray();
         for (String value : resultSetKeys) {
             for (int i = 0; i < sheet1data.length(); i++) {
-                item = sheet1data.getJSONObject(i);
-                Iterator<String> keys = item.keys();
+                Iterator<String> keys = sheet1data.getJSONObject(i).keys();
                 while (keys.hasNext()) {
                     String key = (String) keys.next();
                     if (value.equals(key)) {
-                        rows.put(item.getJSONArray(value));
+                        rows.put(sheet1data.getJSONObject(i).getJSONArray(value));
                     }
                 }
             }
         }
-        writeDataToNewExcelFile(rows);
+        writeDataToNewExcelFile(rows, colName);
         return rows;
     }
 
-    private static void writeDataToNewExcelFile(JSONArray resultData) throws FileNotFoundException, JSONException {
-        FileOutputStream fos = null;
+    private static void writeDataToNewExcelFile(JSONArray resultData, String colName) {
         try {
-            fos = new FileOutputStream(
-                    "C:\\jee-latest\\xslsheets\\result.csv");
-
-            XSSFWorkbook workBook = new XSSFWorkbook();
-            XSSFSheet spreadSheet = workBook.createSheet("Data");
-            XSSFRow row;
-            XSSFCell cell;
-
-            int rowNum = 0;
-            System.out.println("Creating excel");
-
+            FileWriter file = new FileWriter("C:\\jee-latest\\xslsheets\\result.csv");
+            CSVWriter write = new CSVWriter(file);
+            List<String[]> result = new ArrayList<>();
             for (int i = 0; i < resultData.length(); i++) {
-                row = spreadSheet.createRow(rowNum++);
-                int colNum = 0;
-                for (int j = 0; j < resultData.getJSONArray(i).length(); j++) {
-                    cell = row.createCell(colNum++);
-                    if (resultData.getJSONArray(i).get(j) instanceof String) {
-                        cell.setCellValue((String) resultData.getJSONArray(i).get(j));
-                    } else if (resultData.getJSONArray(i).get(j) instanceof Number) {
-                        cell.setCellValue((double) (Number) resultData.getJSONArray(i).get(j));
-                    }
+                String[] arr = new String[resultData.length()];
+                for (int j = 0; j < arr.length; j++) {
+                    arr[j] = (String) resultData.getJSONArray(i).getString(j);
                 }
+                result.add(arr);
             }
-            workBook.write(fos);
-            // System.out.println(resultData + "--------------------");
+            write.writeAll(result);
+            write.close();
         } catch (FileNotFoundException ex) {
             ex.printStackTrace();
         } catch (IOException ex) {
             ex.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
 
     }
