@@ -7,7 +7,6 @@ package comparisonofexcelsheets;
 
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
-import com.sun.media.sound.InvalidFormatException;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -18,6 +17,7 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,7 +35,6 @@ public class ComparisonOfExcelSheets {
 
         // TODO code application logic here
         ComparisonOfExcelSheets c = new ComparisonOfExcelSheets();
-
         Scanner sc = new Scanner(System.in);
         System.out.print("Excel sheet1 link: ");
         String excel1 = sc.next();
@@ -43,14 +42,13 @@ public class ComparisonOfExcelSheets {
         String excel2 = sc.next();
         System.out.print("Enter column name: ");
         String colName = sc.next().toLowerCase();
-        JSONArray file1 = c.excelToJsonForSheet(excel1, colName);
-        JSONArray file2 = c.excelToJsonForSheet(excel2, colName);
-        System.out.println(c.comparingTwoSheets(file1, file2, colName));
-        System.out.println("hiiiiii");
+        JSONArray file1 = c.excelToJsonForSheet2(excel1, colName);
+        JSONArray file2 = c.excelToJsonForSheet2(excel2, colName);
+        c.comparingTwoSheets(file1, file2, colName);
 
     }
 
-    public JSONArray excelToJsonForSheet(String excelSheet, String colName) throws FileNotFoundException, IOException, InvalidFormatException, JSONException {
+    public JSONArray excelToJsonForSheet2(String excelSheet, String colName) throws FileNotFoundException, IOException, InvalidFormatException, JSONException {
         CSVReader reader = new CSVReader(new FileReader(excelSheet));
         List<String[]> records = reader.readAll();
         JSONArray rows = new JSONArray();
@@ -60,9 +58,9 @@ public class ComparisonOfExcelSheets {
         for (int k = 0; k < a.length; k++) {
             if (colName.equals(a[k])) {
                 columnNumber = k;
-                System.out.println("k: " + k);
             }
         }
+
         String name = "";
         for (int i = 0; i < records.size(); i++) {
             String[] s = records.get(i);
@@ -86,12 +84,8 @@ public class ComparisonOfExcelSheets {
             Iterator<String> keys = json.keys();
             while (keys.hasNext()) {
                 String key = (String) keys.next();
-                keysForSheet1.add(key.trim().toLowerCase());
+                keysForSheet1.add(key);
             }
-        }
-        System.out.println("Sheet1 size: " + keysForSheet1.size());
-        for (String s1 : keysForSheet1) {
-            System.out.println("sheet1: " + s1);
         }
 
         for (int i = 0; i < sheet2data.length(); i++) {
@@ -99,47 +93,33 @@ public class ComparisonOfExcelSheets {
             Iterator<String> keys = json.keys();
             while (keys.hasNext()) {
                 String key = (String) keys.next();
-                keysForSheet2.add(key.trim().toLowerCase());
+                keysForSheet2.add(key);
             }
-        }
-        System.out.println("Sheet2 size: " + keysForSheet2.size());
-        for (String s2 : keysForSheet2) {
-            System.out.println("sheet2: " + s2);
         }
 
         for (String keys : keysForSheet1) {
-            System.out.println("key check: " + keys);
             if (keysForSheet2.contains(keys)) {
-                System.out.println("testing: " + keysForSheet2.contains(keys));
                 resultSetKeys.add(keys);
             }
         }
 
         for (String keys : keysForSheet2) {
-            System.out.println("key check2: " + keys);
             if (keysForSheet1.contains(keys)) {
-                System.out.println("testing2: " + keysForSheet1.contains(keys));
                 resultSetKeys.add(keys);
             }
         }
 
-        for (int i = 0; i < keysForSheet2.size(); i++) {
-            String s = keysForSheet2.get(i);
-            System.out.println("me: " + s);
-            if ("name".equals(s)) {
-                System.out.println("hi i came........");
-            }
-        }
-
-        System.out.println("Result set: " + resultSetKeys);
+        JSONObject item = new JSONObject();
         JSONArray rows = new JSONArray();
         for (String value : resultSetKeys) {
             for (int i = 0; i < sheet1data.length(); i++) {
-                Iterator<String> keys = sheet1data.getJSONObject(i).keys();
+                item = sheet1data.getJSONObject(i);
+                Iterator<String> keys = item.keys();
                 while (keys.hasNext()) {
                     String key = (String) keys.next();
                     if (value.equals(key)) {
-                        rows.put(sheet1data.getJSONObject(i).getJSONArray(value));
+                        rows.put(item.getJSONArray(value));
+                        System.out.println("values: " + item.getJSONArray(value));
                     }
                 }
             }
@@ -148,26 +128,42 @@ public class ComparisonOfExcelSheets {
         return rows;
     }
 
-    private static void writeDataToNewExcelFile(JSONArray resultData, String colName) {
+    private static void writeDataToNewExcelFile(JSONArray resultData, String columnName) throws FileNotFoundException, JSONException {
         try {
             FileWriter file = new FileWriter("C:\\jee-latest\\xslsheets\\result.csv");
             CSVWriter write = new CSVWriter(file);
             List<String[]> result = new ArrayList<>();
+            List<String[]> forHeader = new ArrayList<>();
+            int arrayNumber = 0;
+            for (int i1 = 0; i1 < resultData.length(); i1++) {
+                String[] header = new String[resultData.getJSONArray(i1).length()];
+                for (int j = 0; j < header.length; j++) {
+                    if (resultData.getJSONArray(i1).getString(j).equals(columnName)) {
+                        arrayNumber = i1;
+                        for (int k = 0; k < header.length; k++) {
+                            header[k] = (String) resultData.getJSONArray(i1).getString(k);
+                        }
+                        forHeader.add(header);
+                    }
+                }
+            }
             for (int i = 0; i < resultData.length(); i++) {
-                String[] arr = new String[resultData.length()];
+                String[] arr = new String[resultData.getJSONArray(i).length()];
                 for (int j = 0; j < arr.length; j++) {
-                    arr[j] = (String) resultData.getJSONArray(i).getString(j);
+                    if (i!=arrayNumber) {
+                        arr[j] = (String) resultData.getJSONArray(i).getString(j);
+                        System.out.println("in file " + arr[j]);
+                    }
                 }
                 result.add(arr);
             }
+            write.writeAll(forHeader);
             write.writeAll(result);
             write.close();
         } catch (FileNotFoundException ex) {
-            ex.printStackTrace();
+            System.out.println("Result.csv file is open please close it and try again " + ex);;
         } catch (IOException ex) {
-            ex.printStackTrace();
-        } catch (JSONException e) {
-            e.printStackTrace();
+            System.out.println("file cannot be found to close " + ex);
         }
 
     }
